@@ -1,0 +1,12 @@
+---
+title: "Import PVTA"
+author: "Steven Kalt"
+date: "February 5, 2016"
+output: html_document
+---
+```{r setup}
+setwd("~/home/steven/HackPVTA")
+```
+
+```{r streaming CSV}
+# stream the csv
