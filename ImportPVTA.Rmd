@@ -4,9 +4,54 @@ author: "Steven Kalt"
 date: "February 5, 2016"
 output: html_document
 ---
-```{r setup}
-setwd("~/home/steven/HackPVTA")
+```{r setup and imports}
+setwd("/home/steven/HackPVTA")
 ```
 
 ```{r streaming CSV}
-# stream the csv
+# testing
+#input.file <- "first_day.csv"
+SubsetColumns <- function(input.file, output.file, columns){
+  # This function iterates through each line of the dataset, selects the rows and 
+  # columns of interest, and writes a new csv of more manageable length
+  # Args:
+  #   input.file: a string specifying the address of the big dataset csv
+  #   output.file: a string specifying the address of the reduced csv
+  #   columns: a vector of column names.
+  
+  # column names in the raw data file:
+  column.names <- c("X", "VehicleID", "Time", "Lat", "Lon", "Speed", "Direction",
+                    "OffRouteStatus", "CommStatus", "OperationalStatus", "Server.Time",
+                    "Route", "Trip", "Inbound_Outbound", "Diviation", "OnBoard",
+                    "VehicleName", "RunID", "RunName", "Stop_Name", "OperatorRecordID",
+                    "RouteName", "StopReport", "ScheduledHeadway", "TargetHeadway",
+                    "AlarmState", "GPSStatus", "Boards", "Alights", "Confidence_Level",
+                    "Message_Type_ID", "Stop_Dwell_Time", "PTV_Health_alert", "StopID",
+                    "StationaryStatus", "StationaryDiration", "OdometerValue")
+  columns.of.interest <- which(column.names %in% columns)
+  
+  f.in <- file(input.file, "r")
+  f.out <- file(output.file, "wt")
+  line.by.line <- readLines(f.in)
+  line.split <- strsplit(line.by.line, ',')[[1]]
+  while (length(line.by.line)){
+    # write in columns of interest
+    cat(line.split[[1]][columns.of.interest],
+        sep = ',',
+        file = f.out,
+        fill = TRUE)
+  }
+}
+
+
+# I'm somewhat unsure where to go from here
+```
+
+Note: a csv of daily precipitation can be imported by finding amherst at https://gis.ncdc.noaa.gov/maps/ncei/summaries/daily
+
+```{r normal csv import}
+system.time(first.day <- read.table("first_day.csv", header = T, sep = ",", row.names = 'X'))
+# seems pretty cheap.
+
+#TODO disregard busses
+#TODO make date range selection function
