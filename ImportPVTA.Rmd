@@ -6,6 +6,7 @@ output: html_document
 ---
 ```{r setup and imports}
 setwd("/home/steven/HackPVTA")
+require(dplyr)
 ```
 
 ```{r streaming CSV}
@@ -20,14 +21,17 @@ SubsetColumns <- function(input.file, output.file, columns){
   #   columns: a vector of column names.
   
   # column names in the raw data file:
-  column.names <- c("X", "VehicleID", "Time", "Lat", "Lon", "Speed", "Direction",
-                    "OffRouteStatus", "CommStatus", "OperationalStatus", "Server.Time",
-                    "Route", "Trip", "Inbound_Outbound", "Diviation", "OnBoard",
-                    "VehicleName", "RunID", "RunName", "Stop_Name", "OperatorRecordID",
-                    "RouteName", "StopReport", "ScheduledHeadway", "TargetHeadway",
-                    "AlarmState", "GPSStatus", "Boards", "Alights", "Confidence_Level",
-                    "Message_Type_ID", "Stop_Dwell_Time", "PTV_Health_alert", "StopID",
-                    "StationaryStatus", "StationaryDiration", "OdometerValue")
+  column.names <- c("row.number", "vehicle.ID", "time", "lat", "lon", "speed",
+                    "direction",
+                    "off.route.status", "comm.status", "operational.status",
+                    "server.time",
+                    "route", "trip", "inbound.outbound", "diviation", "onboard",
+                    "vehicle.name", "run.ID", "run.name", "stop.name",
+                    "operator.record.ID",
+                    "route.name", "stop.report", "scheduled.headway", "target.headway",
+                    "alarm.state", "GPS.status", "boards", "alights", "confidence.level",
+                    "message.type.ID", "stop.dwell.time", "PTV.health.alert", "stop.ID",
+                    "stationary.status", "stationary.duration", "odometer.value")
   columns.of.interest <- which(column.names %in% columns)
   
   f.in <- file(input.file, "r")
@@ -42,9 +46,6 @@ SubsetColumns <- function(input.file, output.file, columns){
         fill = TRUE)
   }
 }
-
-
-# I'm somewhat unsure where to go from here
 ```
 
 Note: a csv of daily precipitation can be imported by finding amherst at https://gis.ncdc.noaa.gov/maps/ncei/summaries/daily
@@ -55,3 +56,33 @@ system.time(first.day <- read.table("first_day.csv", header = T, sep = ",", row.
 
 #TODO disregard busses
 #TODO make date range selection function
+```
+```{r get stop coords}
+all.stops <- levels(first.day$Stop_Name)
+stopped.busses <- first.day[first.day$StopReport == 1,]
+    #                        c("Lat", "Lon", "Stop_Name", "Direction")]
+bus.stop.coords <- as.data.frame(summarise(group_by(stopped.busses, Stop_Name),
+                                           Lat = median(Lat), Lon = median(Lon)))
+# to test this, I checked that all busses were going in the right direction
+x <- as.data.frame(summarise(group_by(stopped.busses, Stop_Name, Direction),
+                             Lat = median(Lat), Lon = median(Lon)))
+#Turns out google's data beats both means and medians.  The stop data was consistently down the road from the real stop on google maps
+
+# Stop_Report == 3 seems to be only UMass Bus Garag-- indicating 'pull in' and 'pull out' mean 'stop working', 'start working' respectively
+```
+```{r filenames}
+length(c('April2015.csv',
+ 'January2015.csv',
+ 'November2015.csv',
+ 'August2015.csv',
+ 'October2015.csv',
+ 'December2015.csv',
+ 'July2015.csv',
+ 'September2015.csv',
+ 'February2015.csv',
+ 'June2015.csv',
+ 'March2015.csv',
+ 'May2015.csv'))
+```
+
+

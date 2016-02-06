@@ -1,0 +1,7 @@
+service_id,date,exception_type
+S1506-Satco-Sunday-01,20150704,1
+S1506-Satco-Saturday-01,20150704,2
+UM1415-UMTS-Saturday-07,20150704,2
+N1505-VATCo-Saturday-01,20150704,2
+N1505-VATCo-Sunday-01,20150704,1
+N1501-VATCo-Sunday-99,20150907,1
