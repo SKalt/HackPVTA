@@ -10,6 +10,7 @@ The gps coords reported at each point when Stop_Repor == 1 is consistently down 
 require(dplyr)
 require(class)
 library(vegan)
+library(randomForest)
 # setwd('./HackPVTA')
 setwd('./Data')
 ```
@@ -39,22 +40,13 @@ column.names <- c("vehicle.ID", "time", "lat", "lon", "speed",
                   "alarm.state", "GPS.status", "boards", "alights", "confidence.level",
                   "message.type.ID", "stop.dwell.time", "PTV.health.alert", "stop.ID",
                   "stationary.status", "stationary.duration")
-stop.coord.directories <- c('pvta_20150111_0102',
-                            'pvta_20150308_0103',
-                            'pvta_20150821_0118',
-                            'pvta_20151217_1050',
-                            'pvta_20150306_0109',
-                            'pvta_20150626_0325',
-                            'pvta_20150823_0119')
-stop.coord.files <- c()
-for (directory in stop.coord.directories){
-  stop.coord.files <- c(stop.coord.files, paste(".",
-                                                "GoogleData",
-                                                directory,
-                                                "stops.txt",
-                                                sep = "/"))
-}
-rm(stop.coord.directories)
+stop.coord.files <- c('./GoogleData/pvta_20150111_0102/stops.txt',
+                      './GoogleData/pvta_20150308_0103/stops.txt',
+                      './GoogleData/pvta_20150821_0118/stops.txt',
+                      './GoogleData/pvta_20151217_1050/stops.txt',
+                      './GoogleData/pvta_20150306_0109/stops.txt',
+                      './GoogleData/pvta_20150626_0325/stops.txt',
+                      './GoogleData/pvta_20150823_0119/stops.txt')
 ```
 ```{r actually open a file}
 # for simplicity, start with one.
@@ -97,11 +89,21 @@ stop.reported <- month[month$stop.report != 0,]
 stop.estd.coords <- as.data.frame(summarise(group_by(stop.reported, stop.name), 
                                             lat = median(lat),
                                             lon = median(lon)))
-stop.estd.coords$stop.name[] <- lapply(stop.estd.coords$stop.name, as.character)
-deltas <- as.data.frame(summarise(group_by(stop.reported, stop.name, lat, lon)))
+i <- sapply(stop.estd.coords, is.factor)
+stop.estd.coords[i] <- lapply(stop.estd.coords[i], as.character)
+i <- sapply(stop.reported, is.factor)
+stop.reported[i] <- lapply(stop.reported[i], as.character)
+# TODO for loop to create df of summary statitics of coords for each stop
+#deltas <- as.data.frame(summarise(group_by(stop.reported, stop.name, lat, lon)))
 ```
 
-```{r match stop names with google names}
+```{r match stop names with google stops}
+x <- randomForest(x = stop.estd.coords[,c("lat","lon")],
+                  y = as.factor(stop.estd.coords$stop.name),
+                  xtest = stop.reported[,c("lat","lon")],
+                  ytest = as.factor(stop.reported$stop.name))
+```
+```{r failed classifiers}
 CloseBy <- function(a,b, epsilon, mode="square"){
   #a function that is meant to find very near neighbors within a a distance or radius 
   #of a pair of gps coordinates
@@ -118,7 +120,8 @@ CloseBy <- function(a,b, epsilon, mode="square"){
     return(coord.diff >= epsilon)
   }
 }
-possible.matches <- list()
+
+
 for (c1 in c(1:nrow(real.coords))){
   for (c2 in c(1:nrow(stop.estd.coords))){
     if (CloseBy(stop.estd.coords[c2, c(2,3)],
@@ -130,6 +133,7 @@ for (c1 in c(1:nrow(real.coords))){
   }
 }
 # TODO question sanity, iteratively search, eliminate stops
+# seems like a random forests job
 
 for (i in c(1:nrow(stop.estd.coords))){
   print(
@@ -146,7 +150,7 @@ for (r in c(1:nrow(stop.estd.coords))){
     if dist()
   }
 }
-summary(month$stop.dwell.time) #! 
+summary(month$stop.dwell.time) #! gotta control for outliers
 # stationary.busses <- month[month$stationary.duration > 0,] # empty
 # stationary.busses2 <- month[month$stationary.duration > 0,] # empty
 # knn(train = real.coords, )

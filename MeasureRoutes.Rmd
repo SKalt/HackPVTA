@@ -6,8 +6,11 @@ output: html_document
 ---
 
 ```{r imports}
+require(vegan)
+require(lattice)
 ```
 ```{r open files}
+setwd('./Data')
 monthly.files <- c('April2015.csv',
                   'January2015.csv',
                   'November2015.csv',
@@ -64,4 +67,108 @@ for (route in unique(month$route)){
   plot(month[month$route == route, c("lat", "lon")], main = route)
 }
 ```
+In each route, there are at least a few far-off-route points.  
+```{r exclude outliers}
+vars.of.interest <- c("vehicle.ID", "time", "lat", "lon","off.route.status",
+                      "route","trip", "inbound.outbound", "deviation", "onboard",
+                      "stop.name","stop.report","GPS.status", "boards", "alights",
+                      "confidence.level","stop.dwell.time")
+sample.route <- month[month$route.name == "30", vars.of.interest]
+# test that this is time-ordered
+prior <- as.POSIXct(sample.route$time[1:nrow(sample.route) - 1])
+posterior <- as.POSIXct(sample.route$time[2:nrow(sample.route)])
+which(prior > posterior)
+prior[which(prior > posterior)] - posterior[which(prior > posterior) + 1]
+# ok, so I can't assume this...
+
+# plot the route a bus traces:
+BusTrackData <- function(id, data){
+  return(new.df <- sample.route[sample.route$vehicle.ID == id,])
+}
+new.df <- BusTrackData(106, sample.route)
+new.df <- new.df[order(as.POSIXct(new.df$time)),]
+length(unique(new.df$vehicle.ID)) # this really is just bus 106
+plot(new.df[,c("lat","lon")], type="l", main = "30")
+# looks like there's a good deal of teleportation.  Let's eliminate that.
+
+# what constitutes a physics-defying jump in time?
+times <- as.POSIXct(new.df$time)
+diffs <- as.numeric(times[2:length(times)] - times[1:length(times) - 1])
+histogram(diffs)
+histogram(diffs[diffs > 0 & diffs < 1000]) # since 1000s is around 15 mins, this is 
+# ths longest time that is at all useful.  
+
+EliminateTeleportation <- function(data){
+  # finds all time intervals greater than 15 minutes and eliminates them.
+  # Args: 
+  #   data: One bus's dataframe
+  # Returns:
+  #   the indexes of the last time point before the jumps in the argument data
+  times <- as.POSIXct(data$time)
+  jumps <- which(
+    abs(as.numeric(times[2:length(times)] - times[1:length(times) - 1])) > 1000
+    )# note: this is the index in of the time point before the jump
+  return(jumps)
+}
+
+EliminateTeleportation(new.df)
+# ok, going up to the first jump...
+plot(new.df[1:860,c("lat","lon")], type="l", main = 30)
+# that's a good-looking route. Let's add the rest of the data split by the jumps
+par(new=TRUE)
+plot(new.df[861:1015,c("lat","lon")], type="l", main = 30)
+par(new=TRUE)
+plot(new.df[1016:1876,c("lat","lon")], type="l", main = 30)
+par(new=TRUE)
+plot(new.df[1877:1888,c("lat","lon")], type="l", main = 30, col="red")
+# well that is off-route...
+par(new=TRUE)
+plot(new.df[1889:1901,c("lat","lon")], type="l", main = 30, col="green")
+# and back to the route, still off-route...
+par(new=TRUE)
+plot(new.df[1902:2865,c("lat","lon")], type="l", main = 30)
+# and back on-route
+
+# TODO: stitch routes together?
+
+# it looks like the routes are well-traced, meaning we can get consensus bounds n where the route is.  
+Consensus <- function(data, epsilon){
+  # find the consensus gps coord areas that are on-route
+  # Args:
+  #   data: a df wth 
+  #   epsilon: a maximum difference of gps coords 
+  
+}
+
+WheelsOnTheBus <- function(id, data){
+  # this function follows a bus's progress on a given route.  
+  # Args:
+  #   id: vehicle id
+  #   data: the subset of the overall PVTA data in question
+  # Returns:
+  #   a vector of row indexes in the overall data in the order that a bus travels during
+  #   a trip.
+  new.df <- SubsetBusses(id, data)
+  return(order(as.POSIXct(new.df$time)))
+}
+bus.ex <- sample.route[WheelsOnTheBus(106, sample.route),]
+length(unique(bus.ex$vehicle.ID))
+FollowRoute <- function(id){
+  # this function follows a bus's progress on a given route.  
+  # Args:
+  #   id: vehicle id
+  # Returns:
+  #   a edgelist-style dataframe with variables source.stop, target.stop, real.dist,
+  #   time.diff
+}
+```
 isomap -> by time, lat/lon (make sure to scale) create edgelist? 
+no, too complex
+```{r failures}
+# for (route in unique(month$route)[1:1]){
+#   this.route.points <- month[month$route == route, c("lat", "lon")]
+#   system.time(dis <- vegdist(this.route.points))
+#   system.time(x <- isomap(dis))
+#   plot(, main = route)
+# }
+```
