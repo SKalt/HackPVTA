@@ -1,0 +1,67 @@
+---
+title: "MeasureRouteDists"
+author: "Steven Kalt"
+date: "February 6, 2016"
+output: html_document
+---
+
+```{r imports}
+```
+```{r open files}
+monthly.files <- c('April2015.csv',
+                  'January2015.csv',
+                  'November2015.csv',
+                  'August2015.csv',
+                  'October2015.csv',
+                  'December2015.csv',
+                  'July2015.csv',
+                  'September2015.csv',
+                  'February2015.csv',
+                  'June2015.csv',
+                  'March2015.csv',
+                  'May2015.csv')
+# for these the column names are: 
+column.names <- c("vehicle.ID", "time", "lat", "lon", "speed",
+                  "direction",
+                  "off.route.status", "comm.status", "operational.status",
+                  "server.time",
+                  "route", "trip", "inbound.outbound", "deviation", "onboard",
+                  "vehicle.name", "run.ID", "run.name", "stop.name",
+                  "operator.record.ID",
+                  "route.name", "stop.report", "scheduled.headway", "target.headway",
+                  "alarm.state", "GPS.status", "boards", "alights", "confidence.level",
+                  "message.type.ID", "stop.dwell.time", "PTV.health.alert", "stop.ID",
+                  "stationary.status", "stationary.duration")
+stop.coord.files <- c('./GoogleData/pvta_20150111_0102/stops.txt',
+                      './GoogleData/pvta_20150308_0103/stops.txt',
+                      './GoogleData/pvta_20150821_0118/stops.txt',
+                      './GoogleData/pvta_20151217_1050/stops.txt',
+                      './GoogleData/pvta_20150306_0109/stops.txt',
+                      './GoogleData/pvta_20150626_0325/stops.txt',
+                      './GoogleData/pvta_20150823_0119/stops.txt')
+month <- read.table(monthly.files[1], sep = ',', header = F)
+for (c in c(1:length(column.names))){
+  names(month)[c] <- column.names[c]
+}
+
+# get file of stop coords 
+real.coords <- read.csv(stop.coord.files[1], stringsAsFactors = F)
+names(real.coords) <- c('stop.id',
+                        'stop.name',
+                        'stop.desc',
+                        'stop.lat',
+                        'stop.lon',
+                        'stop.street',
+                        'stop.city',
+                        'stop.region',
+                        'stop.postcode',
+                        'stop.country',
+                        'zone.id')
+real.coords <- real.coords[,c('stop.name','stop.lat','stop.lon')]
+```
+```{r plot routes}
+for (route in unique(month$route)){
+  plot(month[month$route == route, c("lat", "lon")], main = route)
+}
+```
+isomap -> by time, lat/lon (make sure to scale) create edgelist? 

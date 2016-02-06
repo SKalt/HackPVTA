@@ -1,0 +1,152 @@
+---
+title: "Stop Report Inaccuracies"
+author: "Steven Kalt"
+date: "February 5, 2016"
+output: html_document
+---
+The gps coords reported at each point when Stop_Repor == 1 is consistently down the road from where the stops actually are.  
+
+```{r imports}
+require(dplyr)
+require(class)
+library(vegan)
+# setwd('./HackPVTA')
+setwd('./Data')
+```
+I considered the data as a whole.
+```{r file names}
+monthly.files <- c('April2015.csv',
+                  'January2015.csv',
+                  'November2015.csv',
+                  'August2015.csv',
+                  'October2015.csv',
+                  'December2015.csv',
+                  'July2015.csv',
+                  'September2015.csv',
+                  'February2015.csv',
+                  'June2015.csv',
+                  'March2015.csv',
+                  'May2015.csv')
+# for these the column names are: 
+column.names <- c("vehicle.ID", "time", "lat", "lon", "speed",
+                  "direction",
+                  "off.route.status", "comm.status", "operational.status",
+                  "server.time",
+                  "route", "trip", "inbound.outbound", "deviation", "onboard",
+                  "vehicle.name", "run.ID", "run.name", "stop.name",
+                  "operator.record.ID",
+                  "route.name", "stop.report", "scheduled.headway", "target.headway",
+                  "alarm.state", "GPS.status", "boards", "alights", "confidence.level",
+                  "message.type.ID", "stop.dwell.time", "PTV.health.alert", "stop.ID",
+                  "stationary.status", "stationary.duration")
+stop.coord.directories <- c('pvta_20150111_0102',
+                            'pvta_20150308_0103',
+                            'pvta_20150821_0118',
+                            'pvta_20151217_1050',
+                            'pvta_20150306_0109',
+                            'pvta_20150626_0325',
+                            'pvta_20150823_0119')
+stop.coord.files <- c()
+for (directory in stop.coord.directories){
+  stop.coord.files <- c(stop.coord.files, paste(".",
+                                                "GoogleData",
+                                                directory,
+                                                "stops.txt",
+                                                sep = "/"))
+}
+rm(stop.coord.directories)
+```
+```{r actually open a file}
+# for simplicity, start with one.
+month <- read.table(monthly.files[1], sep = ',', header = F)
+for (c in c(1:length(column.names))){
+  names(month)[c] <- column.names[c]
+}
+
+# get file of stop coords 
+real.coords <- read.csv(stop.coord.files[1], stringsAsFactors = F)
+names(real.coords) <- c('stop.id',
+                        'stop.name',
+                        'stop.desc',
+                        'stop.lat',
+                        'stop.lon',
+                        'stop.street',
+                        'stop.city',
+                        'stop.region',
+                        'stop.postcode',
+                        'stop.country',
+                        'zone.id')
+real.coords <- real.coords[,c('stop.name','stop.lat','stop.lon')]
+# real.coords$stop.name <- unlist(strsplit(real.coords$stop.name, '[(]'))
+```
+
+```{r where to find stops in data}
+# false starts
+summary(month$stationary.duration)
+summary(month$stationary.status)
+
+#potential starts: when are people boarding, exiting, or when is a stop reported?
+has.boarding <- month[month$boards > 0 | month$alights > 0,]
+has.dwelt <- month[month$stop.dwell.time > 0,]
+table(month$stop.report)
+table(has.dwelt$stop.report)
+table(has.boarding$stop.report)
+#based on these filters, all stop reports != 0 are somewhat meaningful-- no stop report
+# is the mode.
+stop.reported <- month[month$stop.report != 0,]
+stop.estd.coords <- as.data.frame(summarise(group_by(stop.reported, stop.name), 
+                                            lat = median(lat),
+                                            lon = median(lon)))
+stop.estd.coords$stop.name[] <- lapply(stop.estd.coords$stop.name, as.character)
+deltas <- as.data.frame(summarise(group_by(stop.reported, stop.name, lat, lon)))
+```
+
+```{r match stop names with google names}
+CloseBy <- function(a,b, epsilon, mode="square"){
+  #a function that is meant to find very near neighbors within a a distance or radius 
+  #of a pair of gps coordinates
+  #Args:
+  #   a: the training gps coords
+  #   b: the test gps coords
+  #Returns:
+  #   TRUE if the test point is in the range, FALSE otherwise
+  if (mode == "square"){
+    coord.diff <- abs(a - b)
+    return(coord.diff[1] <= epsilon & coord.diff[2] <= epsilon)
+  } else {
+    coord.diff <- sqrt((a[1] - b[1])^2 + (a[2] - b[2])^2)
+    return(coord.diff >= epsilon)
+  }
+}
+possible.matches <- list()
+for (c1 in c(1:nrow(real.coords))){
+  for (c2 in c(1:nrow(stop.estd.coords))){
+    if (CloseBy(stop.estd.coords[c2, c(2,3)],
+                real.coords[c1, c(2,3)],
+                epsilon = .00005)){
+      print(c(stop.estd.coords[c2,1], real.coords[c1, 1]))
+      # possible.matches[[stop.estd.coords[c2,1]]] <- real.coords[c1, 1]
+    }
+  }
+}
+# TODO question sanity, iteratively search, eliminate stops
+
+for (i in c(1:nrow(stop.estd.coords))){
+  print(
+    real.coords$stop.name[
+      sum(abs(real.coords[i,c(2,3)] - stop.estd.coords[i, c(2,3)])) < .00001])
+}
+# matching <- knn1(train = real.coords[,c(2,3)],
+#                 test =stop.estd.coords[,2,3] ,
+#                 cl = real.coords$stop.name)
+row.names(real.coords) <- real.coords$stop.name
+rbind(real.coords,)
+for (r in c(1:nrow(stop.estd.coords))){
+  for (r2 in c(1:nrow(real.coords))){
+    if dist()
+  }
+}
+summary(month$stop.dwell.time) #! 
+# stationary.busses <- month[month$stationary.duration > 0,] # empty
+# stationary.busses2 <- month[month$stationary.duration > 0,] # empty
+# knn(train = real.coords, )
